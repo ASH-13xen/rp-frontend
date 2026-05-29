@@ -158,6 +158,38 @@ const Tablet = ({ isPlaying, setIsPlaying, currentTrack, setCurrentTrack, volume
 
   const [scale, setScale] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
+  const [episodes, setEpisodes] = useState(MOCK_EPISODES);
+
+  // Background Sync from Render Backend
+  useEffect(() => {
+    const fetchLatestEpisodes = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const res = await fetch(`${apiUrl}/api/youtube-data`);
+        if (res.ok) {
+          const freshData = await res.json();
+          if (freshData && freshData.videos) {
+            const formatted = freshData.videos.map((video, idx) => ({
+              id: video.episode_number ? parseInt(video.episode_number, 10) : (idx + 1),
+              title: video.title,
+              host: video.unique_identifier || "Raipur Podcast Crew",
+              duration: formatDuration(video.duration_seconds),
+              date: getMockDate(idx),
+              category: getCategory(video.title, video.unique_identifier),
+              description: video.description || "",
+              videoUrl: `https://www.youtube.com/embed/${video.video_id}`,
+              thumbnailUrl: video.thumbnail_url || "",
+            }));
+            setEpisodes(formatted);
+          }
+        }
+      } catch (err) {
+        console.warn("[Vite App] Failed to background sync episodes from Render backend:", err);
+      }
+    };
+    
+    fetchLatestEpisodes();
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -563,7 +595,7 @@ const Tablet = ({ isPlaying, setIsPlaying, currentTrack, setCurrentTrack, volume
               </div>
               
               <div className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1">
-                {MOCK_EPISODES.slice(0, 4).map((episode) => {
+                {episodes.slice(0, 4).map((episode) => {
                   const isLoaded = currentTrack.id === episode.id;
                   return (
                     <div 
